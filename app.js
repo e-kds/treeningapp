@@ -329,7 +329,7 @@ function naitaTrenni(trenn) {
 
     <label class="valja">
       <span>Kuupäev</span>
-      <input type="date" id="kuupaev" value="${pooleli.kuupaev}">
+      <input type="date" id="kuupaev" value="${pooleli.kuupaev}" max="${tana()}">
     </label>
 
     <label class="valja">
@@ -369,6 +369,10 @@ function valmisTrenn(t) {
 
 function salvestaTrenn() {
   const kirje = valmisTrenn(pooleli);
+  if (kirje.kuupaev > tana()) {
+    alert('Trenni kuupäev ei saa olla tulevikus.');
+    return;
+  }
   if (kirje.harjutused.length === 0) {
     alert('Märgi enne salvestamist vähemalt üks seeria ✓-ga tehtuks.');
     return;
@@ -470,7 +474,14 @@ sisu.addEventListener('click', (e) => {
 sisu.addEventListener('input', (e) => {
   if (!pooleli) return;
   const el = e.target;
-  if (el.id === 'kuupaev') pooleli.kuupaev = el.value;
+  if (el.id === 'kuupaev') {
+    // iPhone'i kalender ei pruugi max-piirangut arvestada, seega kontrollime ise
+    if (el.value > tana()) {
+      alert('Trenni kuupäev ei saa olla tulevikus.');
+      el.value = tana();
+    }
+    pooleli.kuupaev = el.value;
+  }
   if (el.id === 'soojendus') pooleli.soojendus = el.value;
   if (el.dataset.lahter) {
     pooleli.harjutused[el.dataset.h].seeriad[el.dataset.s][el.dataset.lahter] = el.value;
