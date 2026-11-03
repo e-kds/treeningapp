@@ -7,7 +7,10 @@
   --tekst-vaike: #9aa0aa;
   --rohe: #3ecf8e;
   --aar: #2c3038;
+  --sisend: #0e1014;
   --raadius: 16px;
+  /* tumedad kuupäevavalijad jm telefoni enda juhtelemendid */
+  color-scheme: dark;
 }
 
 * {
@@ -87,4 +90,190 @@ main {
   margin-top: 4px;
   color: var(--tekst-vaike);
   font-size: 15px;
+}
+
+/* ---------- Trenni vaade ---------- */
+
+.trenni-paeis {
+  margin-bottom: 16px;
+}
+
+.trenni-paeis h1 {
+  margin: 4px 0 0;
+  font-size: 26px;
+}
+
+.tagasi {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--rohe);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Kuupäev ja soojendus */
+.valja {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.valja > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--tekst-vaike);
+  font-size: 15px;
+}
+
+input,
+textarea {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px;
+  border: 1px solid var(--aar);
+  border-radius: 12px;
+  background: var(--sisend);
+  color: var(--tekst);
+  /* vähemalt 16px, muidu iPhone suumib sisse */
+  font: inherit;
+  font-size: 20px;
+}
+
+textarea {
+  font-size: 18px;
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid var(--rohe);
+  outline-offset: 1px;
+}
+
+/* Üks harjutus */
+.harjutus {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--aar);
+  border-radius: var(--raadius);
+  background: var(--kaart);
+}
+
+.harjutus h2 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.kava-tekst {
+  margin: 2px 0 12px;
+  color: var(--tekst-vaike);
+  font-size: 15px;
+}
+
+.silt {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--aar);
+  color: var(--tekst-vaike);
+  font-size: 13px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+/* Variandi valik */
+.variandid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.variant {
+  flex: 1 1 auto;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--aar);
+  border-radius: 12px;
+  background: var(--taust);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.variant.valitud {
+  border-color: var(--rohe);
+  background: var(--rohe);
+  color: #0b1a12;
+  font-weight: 600;
+}
+
+/* Seeriad: nr | kg | × | kordused */
+.seeriad {
+  display: grid;
+  gap: 8px;
+}
+
+.seeria {
+  display: grid;
+  grid-template-columns: 24px 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.seeria-yks {
+  grid-template-columns: 24px 1fr;
+}
+
+.seeria-nr {
+  color: var(--tekst-vaike);
+  text-align: center;
+}
+
+.korda-mark {
+  color: var(--tekst-vaike);
+}
+
+.lahter {
+  position: relative;
+  display: block;
+}
+
+.lahter input {
+  padding-right: 64px;
+  text-align: right;
+}
+
+/* ühik (kg, korda) lahtri paremas servas */
+.lahter span {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  color: var(--tekst-vaike);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* Seeria lisamine ja eemaldamine */
+.nupu-rida {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.nupp {
+  flex: 1;
+  min-height: 52px;
+  border: 1px solid var(--aar);
+  border-radius: 12px;
+  background: var(--taust);
+  color: var(--tekst);
+  font: inherit;
+  cursor: pointer;
+}
+
+.nupp:disabled {
+  opacity: 0.4;
 }
