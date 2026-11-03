@@ -1,0 +1,90 @@
+/* Värvid ja mõõdud ühes kohas, et neid oleks lihtne muuta */
+:root {
+  --taust: #121418;
+  --kaart: #1d2026;
+  --kaart-vajutus: #262a32;
+  --tekst: #f2f3f5;
+  --tekst-vaike: #9aa0aa;
+  --rohe: #3ecf8e;
+  --aar: #2c3038;
+  --raadius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--taust);
+  color: var(--tekst);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  /* iPhone'i ekraani servad (sälk, kodunupu riba) */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+main {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* Avalehe päis */
+.paeis h1 {
+  margin: 8px 0 2px;
+  font-size: 28px;
+}
+
+.nadal {
+  margin: 0;
+  color: var(--tekst-vaike);
+}
+
+.tehtud-kokku {
+  margin: 16px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Trennikaardid */
+.kaardid {
+  display: grid;
+  gap: 12px;
+}
+
+.kaart {
+  display: block;
+  width: 100%;
+  min-height: 88px;
+  padding: 16px 18px;
+  border: 1px solid var(--aar);
+  border-radius: var(--raadius);
+  background: var(--kaart);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kaart:active {
+  background: var(--kaart-vajutus);
+}
+
+.kaart-pealkiri {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.kaart-harjutused {
+  display: block;
+  margin-top: 4px;
+  color: var(--tekst-vaike);
+  font-size: 15px;
+}
