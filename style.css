@@ -63,34 +63,60 @@ main {
   gap: 12px;
 }
 
+/* Kaart = suur ala trenni avamiseks + ✓-nupp paremal */
 .kaart {
-  display: block;
-  width: 100%;
-  min-height: 88px;
-  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
   border: 1px solid var(--aar);
   border-radius: var(--raadius);
   background: var(--kaart);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.kaart:active {
-  background: var(--kaart-vajutus);
+  overflow: hidden;
 }
 
 .kaart-tehtud {
   border-color: var(--rohe);
 }
 
+.kaart-ava {
+  display: block;
+  width: 100%;
+  min-height: 88px;
+  padding: 16px 8px 16px 18px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kaart-ava:active {
+  background: var(--kaart-vajutus);
+}
+
+.kaart-linnuke {
+  width: 56px;
+  height: 56px;
+  margin-right: 14px;
+  border: 2px solid var(--aar);
+  border-radius: 50%;
+  background: var(--taust);
+  color: var(--tekst-vaike);
+  font: inherit;
+  font-size: 26px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kaart-tehtud .kaart-linnuke {
+  border-color: var(--rohe);
+  background: var(--rohe);
+  color: #0b1a12;
+}
+
 .kaart-ylarida {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  align-items: center;
-  justify-content: space-between;
+  display: block;
 }
 
 .kaart-pealkiri {
@@ -99,8 +125,10 @@ main {
   font-weight: 700;
 }
 
-/* "✓ K, 4. nov" või "Pooleli" kaardi paremas ülanurgas */
+/* "K, 4. nov" või "Pooleli" pealkirja all */
 .olek {
+  display: inline-block;
+  margin-top: 6px;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 15px;

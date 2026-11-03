@@ -125,20 +125,48 @@ function kavaTekst(harjutus, variant) {
 
 // ---------- Avaleht ----------
 
-function naitaAvalehte() {
+// Selle nädala esmaspäev ja pühapäev, nt { algus: "2026-11-02", lopp: "2026-11-08" }
+function nadalaPiirid() {
   const esmaspaev = nadalaAlgus(new Date());
   const pyhapaev = new Date(esmaspaev);
   pyhapaev.setDate(pyhapaev.getDate() + 6);
-  const algus = kuupaevTekstina(esmaspaev);
-  const lopp = kuupaevTekstina(pyhapaev);
+  return { esmaspaev, algus: kuupaevTekstina(esmaspaev), lopp: kuupaevTekstina(pyhapaev) };
+}
 
-  // Iga trenni kohta: selle nädala viimane salvestatud kord (või undefined)
+// Selle trenni sel nädalal tehtud korrad, millel on linnuke.
+// (linnuke: false tähendab, et linnuke on käsitsi eemaldatud, aga trenn jääb ajalukku.)
+function selleNadalaKorrad(trennId) {
+  const { algus, lopp } = nadalaPiirid();
+  return trennid.filter((t) => t.trennId === trennId &&
+    t.kuupaev >= algus && t.kuupaev <= lopp && t.linnuke !== false);
+}
+
+function vahetaLinnukest(trennId) {
+  const korrad = selleNadalaKorrad(trennId);
+
+  if (korrad.length === 0) {
+    // Käsitsi pandud linnuke: ilma harjutusteta kirje tänase kuupäevaga
+    trennid.push({ id: String(Date.now()), trennId, kuupaev: tana(), kasitsi: true, soojendus: '', harjutused: [] });
+  } else {
+    const paris = korrad.some((t) => !t.kasitsi);
+    if (paris && !confirm('Kas eemaldad linnukese? Salvestatud trenn jääb ajalukku alles.')) return;
+    // Käsitsi pandud linnukestes pole andmeid, need võib kustutada. Päris trennid jäävad alles.
+    trennid = trennid.filter((t) => !(korrad.includes(t) && t.kasitsi));
+    for (const t of korrad) t.linnuke = false;
+  }
+
+  kirjuta(VOTI_TRENNID, trennid);
+  naitaAvalehte();
+}
+
+function naitaAvalehte() {
+  const { esmaspaev } = nadalaPiirid();
+
+  // Iga trenni kohta: selle nädala viimane kord (või undefined)
   const selNadalal = {};
-  for (const t of trennid) {
-    if (t.kuupaev >= algus && t.kuupaev <= lopp) {
-      const eelmine = selNadalal[t.trennId];
-      if (!eelmine || t.kuupaev > eelmine.kuupaev) selNadalal[t.trennId] = t;
-    }
+  for (const trenn of KAVA) {
+    const korrad = selleNadalaKorrad(trenn.id).sort((a, b) => a.kuupaev.localeCompare(b.kuupaev));
+    selNadalal[trenn.id] = korrad[korrad.length - 1];
   }
   const tehtud = KAVA.filter((trenn) => selNadalal[trenn.id]).length;
 
@@ -152,17 +180,21 @@ function naitaAvalehte() {
     if (pooleli && pooleli.trennId === trenn.id) {
       olek = '<span class="olek olek-pooleli">Pooleli</span>';
     } else if (tehtudKord) {
-      olek = `<span class="olek olek-tehtud">✓ ${lyhikeKuupaev(tehtudKord.kuupaev)}</span>`;
+      olek = `<span class="olek olek-tehtud">${lyhikeKuupaev(tehtudKord.kuupaev)}</span>`;
     }
 
     return `
-      <button class="kaart ${tehtudKord ? 'kaart-tehtud' : ''}" data-tegevus="ava-trenn" data-trenn="${trenn.id}">
-        <span class="kaart-ylarida">
-          <span class="kaart-pealkiri">${puhasta(trenn.nimi)} – ${puhasta(trenn.teema)}</span>
-          ${olek}
-        </span>
-        <span class="kaart-harjutused">${puhasta(harjutused)}</span>
-      </button>`;
+      <div class="kaart ${tehtudKord ? 'kaart-tehtud' : ''}">
+        <button class="kaart-ava" data-tegevus="ava-trenn" data-trenn="${trenn.id}">
+          <span class="kaart-ylarida">
+            <span class="kaart-pealkiri">${puhasta(trenn.nimi)} – ${puhasta(trenn.teema)}</span>
+            ${olek}
+          </span>
+          <span class="kaart-harjutused">${puhasta(harjutused)}</span>
+        </button>
+        <button class="kaart-linnuke" data-tegevus="linnuke" data-trenn="${trenn.id}"
+          aria-label="${puhasta(trenn.nimi)} tehtud" aria-pressed="${Boolean(tehtudKord)}">✓</button>
+      </div>`;
   }).join('');
 
   document.getElementById('sisu').innerHTML = `
@@ -426,6 +458,9 @@ sisu.addEventListener('click', (e) => {
       return;
     case 'tagasi':
       location.hash = '';
+      return;
+    case 'linnuke':
+      vahetaLinnukest(nupp.dataset.trenn);
       return;
     case 'salvesta':
       salvestaTrenn();
