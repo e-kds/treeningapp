@@ -1,6 +1,7 @@
 // Äpi loogika. Kava ise on failis kava.js (muutuja KAVA).
 
 const KUUD = ['jaan', 'veebr', 'märts', 'apr', 'mai', 'juuni', 'juuli', 'aug', 'sept', 'okt', 'nov', 'dets'];
+const NADALAPAEVAD = ['P', 'E', 'T', 'K', 'N', 'R', 'L']; // Date.getDay(): pühapäev = 0
 
 // Millised lahtrid on seeria juures, olenevalt variandi tüübist (vt kava.js).
 // "kordused" lahtris on plangu puhul sekundid.
@@ -12,8 +13,41 @@ const LAHTRID = {
   aeg: { kordused: 'sek' },
 };
 
-// Praegu avatud trenn. Hiljem salvestatakse see ka telefoni mällu.
-let pooleli = null;
+// ---------- Telefoni mälu (localStorage) ----------
+
+const VOTI_TRENNID = 'treeningapp.trennid';
+const VOTI_POOLELI = 'treeningapp.pooleli';
+
+function loe(voti, vaikimisi) {
+  try {
+    const tekst = localStorage.getItem(voti);
+    return tekst ? JSON.parse(tekst) : vaikimisi;
+  } catch {
+    return vaikimisi;
+  }
+}
+
+function kirjuta(voti, vaartus) {
+  try {
+    if (vaartus === null) {
+      localStorage.removeItem(voti);
+    } else {
+      localStorage.setItem(voti, JSON.stringify(vaartus));
+    }
+  } catch {
+    alert('Salvestamine ebaõnnestus: telefoni mälu pole kättesaadav.');
+  }
+}
+
+// Kõik salvestatud trennid
+let trennid = loe(VOTI_TRENNID, []);
+
+// Praegu pooleli olev trenn (või null). Salvestub iga muudatusega, et see ei kaoks.
+let pooleli = loe(VOTI_POOLELI, null);
+
+function salvestaPooleli() {
+  kirjuta(VOTI_POOLELI, pooleli);
+}
 
 // ---------- Abifunktsioonid ----------
 
@@ -35,12 +69,28 @@ function nadalaVahemik(esmaspaev) {
   return `${esmaspaev.getDate()}. ${KUUD[esmaspaev.getMonth()]} – ${pyhapaev.getDate()}. ${KUUD[pyhapaev.getMonth()]}`;
 }
 
-// Tänane kuupäev kujul "2026-11-04" (nii tahab kuupäevalahter)
-function tana() {
-  const d = new Date();
+// Kuupäev kujul "2026-11-04" (nii tahab kuupäevalahter ja nii on seda lihtne võrrelda)
+function kuupaevTekstina(d) {
   const kk = String(d.getMonth() + 1).padStart(2, '0');
   const pp = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${kk}-${pp}`;
+}
+
+function tana() {
+  return kuupaevTekstina(new Date());
+}
+
+// "2026-11-04" -> "K, 4. nov"
+function lyhikeKuupaev(tekst) {
+  const [a, k, p] = tekst.split('-').map(Number);
+  const d = new Date(a, k - 1, p);
+  return `${NADALAPAEVAD[d.getDay()]}, ${p}. ${KUUD[k - 1]}`;
+}
+
+// "22,5" -> 22.5; tühi või vigane -> null
+function arvuks(tekst) {
+  const arv = parseFloat(String(tekst).replace(',', '.'));
+  return Number.isFinite(arv) ? arv : null;
 }
 
 // Ohutu tekst HTML-i sisse panemiseks
@@ -72,15 +122,40 @@ function kavaTekst(harjutus, variant) {
 
 function naitaAvalehte() {
   const esmaspaev = nadalaAlgus(new Date());
-  const tehtud = 0; // tuleb hiljem salvestatud trennidest
+  const pyhapaev = new Date(esmaspaev);
+  pyhapaev.setDate(pyhapaev.getDate() + 6);
+  const algus = kuupaevTekstina(esmaspaev);
+  const lopp = kuupaevTekstina(pyhapaev);
+
+  // Iga trenni kohta: selle nädala viimane salvestatud kord (või undefined)
+  const selNadalal = {};
+  for (const t of trennid) {
+    if (t.kuupaev >= algus && t.kuupaev <= lopp) {
+      const eelmine = selNadalal[t.trennId];
+      if (!eelmine || t.kuupaev > eelmine.kuupaev) selNadalal[t.trennId] = t;
+    }
+  }
+  const tehtud = KAVA.filter((trenn) => selNadalal[trenn.id]).length;
 
   const kaardid = KAVA.map((trenn) => {
+    const tehtudKord = selNadalal[trenn.id];
     const harjutused = trenn.harjutused
       .map((h) => h.variandid[0].nimi)
       .join(', ');
+
+    let olek = '';
+    if (pooleli && pooleli.trennId === trenn.id) {
+      olek = '<span class="olek olek-pooleli">Pooleli</span>';
+    } else if (tehtudKord) {
+      olek = `<span class="olek olek-tehtud">✓ ${lyhikeKuupaev(tehtudKord.kuupaev)}</span>`;
+    }
+
     return `
-      <button class="kaart" data-tegevus="ava-trenn" data-trenn="${trenn.id}">
-        <span class="kaart-pealkiri">${puhasta(trenn.nimi)} – ${puhasta(trenn.teema)}</span>
+      <button class="kaart ${tehtudKord ? 'kaart-tehtud' : ''}" data-tegevus="ava-trenn" data-trenn="${trenn.id}">
+        <span class="kaart-ylarida">
+          <span class="kaart-pealkiri">${puhasta(trenn.nimi)} – ${puhasta(trenn.teema)}</span>
+          ${olek}
+        </span>
         <span class="kaart-harjutused">${puhasta(harjutused)}</span>
       </button>`;
   }).join('');
@@ -107,6 +182,12 @@ function uusTrenn(trenn) {
       seeriad: Array.from({ length: h.seeriad[1] }, () => ({ raskus: '', kordused: '' })),
     })),
   };
+}
+
+// Kas pooleli trenni on midagi sisse kirjutatud?
+function onSisestatud(t) {
+  return t.soojendus.trim() !== '' ||
+    t.harjutused.some((h) => h.seeriad.some((s) => s.raskus !== '' || s.kordused !== ''));
 }
 
 function seeriaRida(hi, si, seeria, variant) {
@@ -180,7 +261,46 @@ function naitaTrenni(trenn) {
       <textarea id="soojendus" rows="2" placeholder="Mida soojenduseks tegid?">${puhasta(pooleli.soojendus)}</textarea>
     </label>
 
-    ${trenn.harjutused.map(harjutuseKaart).join('')}`;
+    ${trenn.harjutused.map(harjutuseKaart).join('')}
+
+    <div class="trenni-lopp">
+      <button class="nupp nupp-pea" data-tegevus="salvesta">Salvesta trenn</button>
+      <button class="nupp nupp-ohtlik" data-tegevus="tyhista">Tühista trenn</button>
+    </div>`;
+}
+
+// Teeb pooleli trennist salvestatava kirje: numbrid arvudeks, tühjad seeriad ja
+// harjutused (nt vahele jäetud valikulised) välja.
+function valmisTrenn(t) {
+  const harjutused = t.harjutused
+    .map((h) => ({
+      variant: h.variant,
+      seeriad: h.seeriad
+        .map((s) => ({ raskus: arvuks(s.raskus), kordused: arvuks(s.kordused) }))
+        .filter((s) => s.raskus !== null || s.kordused !== null),
+    }))
+    .filter((h) => h.seeriad.length > 0);
+
+  return {
+    id: String(Date.now()),
+    trennId: t.trennId,
+    kuupaev: t.kuupaev || tana(),
+    soojendus: t.soojendus.trim(),
+    harjutused,
+  };
+}
+
+function salvestaTrenn() {
+  const kirje = valmisTrenn(pooleli);
+  if (kirje.harjutused.length === 0) {
+    alert('Sisesta enne salvestamist vähemalt üks seeria.');
+    return;
+  }
+  trennid.push(kirje);
+  kirjuta(VOTI_TRENNID, trennid);
+  pooleli = null;
+  salvestaPooleli();
+  location.hash = '';
 }
 
 // ---------- Mis vaade on lahti ----------
@@ -189,8 +309,22 @@ function naitaTrenni(trenn) {
 function naitaVaadet() {
   const trenn = leiaTrenn(location.hash.slice(1));
   if (trenn) {
+    // Teine trenn on pooleli: küsi enne, kui selle üle kirjutame
+    if (pooleli && pooleli.trennId !== trenn.id && onSisestatud(pooleli)) {
+      const nimi = leiaTrenn(pooleli.trennId).nimi;
+      if (!confirm(`${nimi} on pooleli. Kui alustad uut trenni, kustuvad selle sisestused. Kas jätkad?`)) {
+        location.hash = pooleli.trennId;
+        return;
+      }
+    }
     naitaTrenni(trenn);
+    salvestaPooleli();
   } else {
+    // Tühja trenni pole mõtet „pooleli" märkida
+    if (pooleli && !onSisestatud(pooleli)) {
+      pooleli = null;
+      salvestaPooleli();
+    }
     naitaAvalehte();
   }
   window.scrollTo(0, 0);
@@ -212,6 +346,16 @@ sisu.addEventListener('click', (e) => {
     case 'tagasi':
       location.hash = '';
       return;
+    case 'salvesta':
+      salvestaTrenn();
+      return;
+    case 'tyhista':
+      if (confirm('Kas kustutad selle trenni sisestused?')) {
+        pooleli = null;
+        salvestaPooleli();
+        location.hash = '';
+      }
+      return;
     case 'variant':
       pooleli.harjutused[hi].variant = nupp.dataset.variant;
       break;
@@ -226,6 +370,8 @@ sisu.addEventListener('click', (e) => {
       break;
   }
 
+  salvestaPooleli();
+
   // Joonista trenn uuesti, aga jäta kerimise koht samaks
   const y = window.scrollY;
   naitaTrenni(leiaTrenn(pooleli.trennId));
@@ -233,12 +379,14 @@ sisu.addEventListener('click', (e) => {
 });
 
 sisu.addEventListener('input', (e) => {
+  if (!pooleli) return;
   const el = e.target;
   if (el.id === 'kuupaev') pooleli.kuupaev = el.value;
   if (el.id === 'soojendus') pooleli.soojendus = el.value;
   if (el.dataset.lahter) {
     pooleli.harjutused[el.dataset.h].seeriad[el.dataset.s][el.dataset.lahter] = el.value;
   }
+  salvestaPooleli();
 });
 
 window.addEventListener('hashchange', naitaVaadet);

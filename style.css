@@ -6,6 +6,8 @@
   --tekst: #f2f3f5;
   --tekst-vaike: #9aa0aa;
   --rohe: #3ecf8e;
+  --kollane: #f5c451;
+  --punane: #ff6b6b;
   --aar: #2c3038;
   --sisend: #0e1014;
   --raadius: 16px;
@@ -79,10 +81,41 @@ main {
   background: var(--kaart-vajutus);
 }
 
+.kaart-tehtud {
+  border-color: var(--rohe);
+}
+
+.kaart-ylarida {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .kaart-pealkiri {
   display: block;
   font-size: 22px;
   font-weight: 700;
+}
+
+/* "✓ K, 4. nov" või "Pooleli" kaardi paremas ülanurgas */
+.olek {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.olek-tehtud {
+  background: var(--rohe);
+  color: #0b1a12;
+}
+
+.olek-pooleli {
+  background: var(--kollane);
+  color: #1f1600;
 }
 
 .kaart-harjutused {
@@ -276,4 +309,26 @@ textarea:focus {
 
 .nupp:disabled {
   opacity: 0.4;
+}
+
+/* Trenni lõpu nupud */
+.trenni-lopp {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 32px;
+}
+
+.nupp-pea {
+  min-height: 60px;
+  border-color: var(--rohe);
+  background: var(--rohe);
+  color: #0b1a12;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.nupp-ohtlik {
+  border-color: transparent;
+  background: none;
+  color: var(--punane);
 }
