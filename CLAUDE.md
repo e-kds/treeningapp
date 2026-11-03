@@ -21,6 +21,7 @@ Isiklik jõutreeningu päevik **iPhone'ile**. Kasutan seda jõusaalis trenni aja
 - **Varukoopia:** nupp, mis ekspordib kõik andmed ühte faili, ja nupp, mis impordib need tagasi.
 - Disain: **mobiil eelkõige**, suured nupud (kasutan trenni ajal, vahel higiste kätega), tume teema, numbrite sisestamiseks numbriklaviatuur.
 - Kogu kasutajaliides on **eesti keeles**. Raskused kilogrammides.
+- Iga kord, kui `style.css`, `kava.js` või `app.js` muutub, suurenda `index.html`-is nende `?v=` numbrit, muidu näitab iPhone kuni 10 minutit vana versiooni.
 
 ## Treeningkava
 
