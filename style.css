@@ -242,7 +242,19 @@ textarea:focus {
   font-weight: 600;
 }
 
-/* Seeriad: nr | kg | × | kordused */
+/* Eelmise korra tulemus */
+.eelmine {
+  margin: 0 0 10px;
+  color: var(--tekst-vaike);
+  font-size: 15px;
+}
+
+.eelmine strong {
+  color: var(--tekst);
+  font-weight: 600;
+}
+
+/* Seeriad: nr | kg | × | kordused | ✓ */
 .seeriad {
   display: grid;
   gap: 8px;
@@ -250,13 +262,26 @@ textarea:focus {
 
 .seeria {
   display: grid;
-  grid-template-columns: 24px 1fr auto 1fr;
-  gap: 8px;
+  grid-template-columns: 20px 1fr 12px 1fr 56px;
+  gap: 6px;
   align-items: center;
 }
 
 .seeria-yks {
-  grid-template-columns: 24px 1fr;
+  grid-template-columns: 20px 1fr 56px;
+}
+
+.seeria input {
+  min-width: 0;
+  padding: 12px 6px;
+  text-align: center;
+}
+
+/* ühikud (kg, korda) seeriate kohal */
+.seeria-pais {
+  color: var(--tekst-vaike);
+  font-size: 14px;
+  text-align: center;
 }
 
 .seeria-nr {
@@ -266,27 +291,30 @@ textarea:focus {
 
 .korda-mark {
   color: var(--tekst-vaike);
+  text-align: center;
 }
 
-.lahter {
-  position: relative;
-  display: block;
-}
-
-.lahter input {
-  padding-right: 64px;
-  text-align: right;
-}
-
-/* ühik (kg, korda) lahtri paremas servas */
-.lahter span {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
+/* ✓-nupp: vajutad, kui seeria on tehtud */
+.linnuke {
+  height: 52px;
+  border: 2px solid var(--aar);
+  border-radius: 12px;
+  background: var(--taust);
   color: var(--tekst-vaike);
-  font-size: 14px;
-  pointer-events: none;
+  font: inherit;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.seeria-tehtud .linnuke {
+  border-color: var(--rohe);
+  background: var(--rohe);
+  color: #0b1a12;
+}
+
+.seeria-tehtud input {
+  border-color: var(--rohe);
 }
 
 /* Seeria lisamine ja eemaldamine */

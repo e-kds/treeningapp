@@ -93,6 +93,11 @@ function arvuks(tekst) {
   return Number.isFinite(arv) ? arv : null;
 }
 
+// 22.5 -> "22,5"; null -> ""
+function arvTekstiks(arv) {
+  return arv === null || arv === undefined ? '' : String(arv).replace('.', ',');
+}
+
 // Ohutu tekst HTML-i sisse panemiseks
 function puhasta(tekst) {
   return String(tekst)
@@ -169,51 +174,121 @@ function naitaAvalehte() {
     <div class="kaardid">${kaardid}</div>`;
 }
 
+// ---------- Eelmine kord ----------
+
+// Viimane salvestatud kord, kus seda varianti tehti: { kuupaev, seeriad } või null
+function viimaneKord(variantId) {
+  let parim = null;
+  for (const t of trennid) {
+    const h = t.harjutused.find((x) => x.variant === variantId);
+    if (!h) continue;
+    // Hilisem kuupäev võidab; sama päeva puhul hiljem salvestatud
+    if (!parim || t.kuupaev > parim.kuupaev || (t.kuupaev === parim.kuupaev && t.id > parim.id)) {
+      parim = { id: t.id, kuupaev: t.kuupaev, seeriad: h.seeriad };
+    }
+  }
+  return parim;
+}
+
+// Harjutuse viimati tehtud variant (mis tahes trennist) või esimene variant
+function viimatiTehtudVariant(harjutus) {
+  let parim = null;
+  for (const v of harjutus.variandid) {
+    const kord = viimaneKord(v.id);
+    if (kord && (!parim || kord.kuupaev > parim.kord.kuupaev ||
+        (kord.kuupaev === parim.kord.kuupaev && kord.id > parim.kord.id))) {
+      parim = { id: v.id, kord };
+    }
+  }
+  return parim ? parim.id : harjutus.variandid[0].id;
+}
+
+// Üks seeria lühidalt, nt "60×8", "+10×8", "abi 20×8", "12" või "45 s"
+function seeriaTekst(s, tyyp) {
+  const kordused = arvTekstiks(s.kordused) || '?';
+  if (tyyp === 'aeg') return `${kordused} s`;
+  if (tyyp === 'kordused') return kordused;
+  const kg = arvTekstiks(s.raskus);
+  if (kg === '') return `${kordused} korda`;
+  const raskus = tyyp === 'lisaraskus' ? `+${kg}` : tyyp === 'abi' ? `abi ${kg}` : kg;
+  return s.kordused === null ? `${raskus} kg` : `${raskus}×${kordused}`;
+}
+
+// Seeriad eelmise korra väärtustega (või tühjad, kui varianti pole veel tehtud)
+function seeriadEelmisest(harjutus, variantId) {
+  const kord = viimaneKord(variantId);
+  if (!kord) {
+    return Array.from({ length: harjutus.seeriad[1] }, () => ({ raskus: '', kordused: '', tehtud: false }));
+  }
+  return kord.seeriad.map((s) => ({
+    raskus: arvTekstiks(s.raskus),
+    kordused: arvTekstiks(s.kordused),
+    tehtud: false,
+  }));
+}
+
 // ---------- Trenni sisestamine ----------
 
-// Uus tühi trenn: iga harjutuse juures esimene variant ja suurim seeriate arv
+// Uus trenn: iga harjutuse juures viimati tehtud variant ja selle eelmise korra seeriad
 function uusTrenn(trenn) {
   return {
     trennId: trenn.id,
     kuupaev: tana(),
     soojendus: '',
-    harjutused: trenn.harjutused.map((h) => ({
-      variant: h.variandid[0].id,
-      seeriad: Array.from({ length: h.seeriad[1] }, () => ({ raskus: '', kordused: '' })),
-    })),
+    harjutused: trenn.harjutused.map((h) => {
+      const variant = viimatiTehtudVariant(h);
+      return { variant, seeriad: seeriadEelmisest(h, variant) };
+    }),
   };
 }
 
-// Kas pooleli trenni on midagi sisse kirjutatud?
+// Kas pooleli trennis on midagi tehtud? (Eeltäidetud numbrid ei loe.)
 function onSisestatud(t) {
   return t.soojendus.trim() !== '' ||
-    t.harjutused.some((h) => h.seeriad.some((s) => s.raskus !== '' || s.kordused !== ''));
+    t.harjutused.some((h) => h.seeriad.some((s) => s.tehtud));
 }
 
 function seeriaRida(hi, si, seeria, variant) {
   const lahtrid = LAHTRID[variant.tyyp];
   const lahter = (nimi) => `
-    <label class="lahter">
-      <input type="text" inputmode="${nimi === 'raskus' ? 'decimal' : 'numeric'}"
-        data-h="${hi}" data-s="${si}" data-lahter="${nimi}"
-        value="${puhasta(seeria[nimi])}" autocomplete="off">
-      <span>${lahtrid[nimi]}</span>
-    </label>`;
+    <input type="text" inputmode="${nimi === 'raskus' ? 'decimal' : 'numeric'}"
+      data-h="${hi}" data-s="${si}" data-lahter="${nimi}" aria-label="${lahtrid[nimi]}"
+      value="${puhasta(seeria[nimi])}" autocomplete="off">`;
 
   const osad = [];
   if (lahtrid.raskus) osad.push(lahter('raskus'), '<span class="korda-mark">×</span>');
   osad.push(lahter('kordused'));
 
   return `
-    <div class="seeria ${lahtrid.raskus ? '' : 'seeria-yks'}">
+    <div class="seeria ${lahtrid.raskus ? '' : 'seeria-yks'} ${seeria.tehtud ? 'seeria-tehtud' : ''}">
       <span class="seeria-nr">${si + 1}</span>
       ${osad.join('')}
+      <button class="linnuke" data-tegevus="tehtud" data-h="${hi}" data-s="${si}"
+        aria-label="Seeria ${si + 1} tehtud" aria-pressed="${seeria.tehtud}">✓</button>
+    </div>`;
+}
+
+// Ühikud seeriate kohal, nt "kg  ×  korda"
+function seeriaPais(variant) {
+  const lahtrid = LAHTRID[variant.tyyp];
+  if (!lahtrid.raskus) {
+    return `<div class="seeria seeria-yks seeria-pais"><span></span><span>${lahtrid.kordused}</span><span></span></div>`;
+  }
+  return `
+    <div class="seeria seeria-pais">
+      <span></span><span>${lahtrid.raskus}</span><span></span><span>${lahtrid.kordused}</span><span></span>
     </div>`;
 }
 
 function harjutuseKaart(harjutus, hi) {
   const sisestus = pooleli.harjutused[hi];
   const variant = harjutus.variandid.find((v) => v.id === sisestus.variant);
+
+  const kord = viimaneKord(variant.id);
+  const eelmine = kord
+    ? `<p class="eelmine">Eelmine kord (${lyhikeKuupaev(kord.kuupaev)}):
+        <strong>${kord.seeriad.map((s) => seeriaTekst(s, variant.tyyp)).join(', ')}</strong></p>`
+    : '';
 
   const variandid = harjutus.variandid.length > 1
     ? `<div class="variandid">${harjutus.variandid.map((v) => `
@@ -231,7 +306,8 @@ function harjutuseKaart(harjutus, hi) {
       <h2>${puhasta(variant.nimi)}${harjutus.valikuline ? ' <span class="silt">valikuline</span>' : ''}</h2>
       <p class="kava-tekst">${kavaTekst(harjutus, variant)}</p>
       ${variandid}
-      <div class="seeriad">${seeriad}</div>
+      ${eelmine}
+      <div class="seeriad">${seeriaPais(variant)}${seeriad}</div>
       <div class="nupu-rida">
         <button class="nupp" data-tegevus="eemalda-seeria" data-h="${hi}"
           ${sisestus.seeriad.length <= 1 ? 'disabled' : ''}>− Seeria</button>
@@ -269,13 +345,14 @@ function naitaTrenni(trenn) {
     </div>`;
 }
 
-// Teeb pooleli trennist salvestatava kirje: numbrid arvudeks, tühjad seeriad ja
-// harjutused (nt vahele jäetud valikulised) välja.
+// Teeb pooleli trennist salvestatava kirje: ainult ✓-ga seeriad, numbrid arvudeks.
+// Harjutused, kus ühtki seeriat ei tehtud (nt vahele jäetud valikulised), jäävad välja.
 function valmisTrenn(t) {
   const harjutused = t.harjutused
     .map((h) => ({
       variant: h.variant,
       seeriad: h.seeriad
+        .filter((s) => s.tehtud)
         .map((s) => ({ raskus: arvuks(s.raskus), kordused: arvuks(s.kordused) }))
         .filter((s) => s.raskus !== null || s.kordused !== null),
     }))
@@ -293,7 +370,7 @@ function valmisTrenn(t) {
 function salvestaTrenn() {
   const kirje = valmisTrenn(pooleli);
   if (kirje.harjutused.length === 0) {
-    alert('Sisesta enne salvestamist vähemalt üks seeria.');
+    alert('Märgi enne salvestamist vähemalt üks seeria ✓-ga tehtuks.');
     return;
   }
   trennid.push(kirje);
@@ -356,13 +433,25 @@ sisu.addEventListener('click', (e) => {
         location.hash = '';
       }
       return;
-    case 'variant':
-      pooleli.harjutused[hi].variant = nupp.dataset.variant;
+    case 'tehtud': {
+      const seeria = pooleli.harjutused[hi].seeriad[Number(nupp.dataset.s)];
+      seeria.tehtud = !seeria.tehtud;
       break;
+    }
+    case 'variant': {
+      const sisestus = pooleli.harjutused[hi];
+      sisestus.variant = nupp.dataset.variant;
+      // Kui selles harjutuses pole veel midagi tehtud, too uue variandi eelmise korra numbrid
+      if (!sisestus.seeriad.some((s) => s.tehtud)) {
+        const harjutus = leiaTrenn(pooleli.trennId).harjutused[hi];
+        sisestus.seeriad = seeriadEelmisest(harjutus, sisestus.variant);
+      }
+      break;
+    }
     case 'lisa-seeria': {
       const seeriad = pooleli.harjutused[hi].seeriad;
       // Uus seeria saab eelmise seeria väärtused, et oleks vähem trükkimist
-      seeriad.push({ ...seeriad[seeriad.length - 1] });
+      seeriad.push({ ...seeriad[seeriad.length - 1], tehtud: false });
       break;
     }
     case 'eemalda-seeria':
