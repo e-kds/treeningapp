@@ -410,3 +410,112 @@ textarea:focus {
   background: none;
   color: var(--punane);
 }
+
+/* Puhkeaja valik trenni vaates */
+.puhkeaeg-rida {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.puhkeaeg-rida strong {
+  min-width: 64px;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ---------- Puhkeaja taimer ---------- */
+
+/* Et taimer ei kataks lehe viimaseid nuppe */
+body.taimer-lahti main {
+  padding-bottom: 150px;
+}
+
+.taimer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--aar);
+  background: var(--kaart);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.taimer[hidden] {
+  display: none;
+}
+
+.taimer-aeg-ala {
+  display: flex;
+  flex-direction: column;
+}
+
+.taimer-silt {
+  color: var(--tekst-vaike);
+  font-size: 14px;
+}
+
+.taimer-aeg {
+  font-size: 48px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.taimer-nupud {
+  display: flex;
+  gap: 8px;
+}
+
+.taimer-nupp {
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0 10px;
+  border: 1px solid var(--aar);
+  border-radius: 12px;
+  background: var(--taust);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Aeg läbi: kogu riba on roheline nupp */
+.taimer-labi {
+  padding: 0;
+  border-top-color: var(--rohe);
+  background: var(--rohe);
+}
+
+.taimer-labi-nupp {
+  width: 100%;
+  min-height: 96px;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  border: 0;
+  background: none;
+  color: #0b1a12;
+  font: inherit;
+  font-size: 30px;
+  font-weight: 800;
+  cursor: pointer;
+  animation: vilgu 1s ease-in-out 3;
+}
+
+.taimer-labi-nupp span {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+@keyframes vilgu {
+  50% { opacity: 0.4; }
+}

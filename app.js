@@ -457,6 +457,15 @@ function naitaTrenni(trenn) {
       <textarea id="soojendus" rows="2" placeholder="Mida soojenduseks tegid?">${puhasta(pooleli.soojendus)}</textarea>
     </label>
 
+    <div class="valja">
+      <span>Puhkeaeg seeriate vahel</span>
+      <div class="puhkeaeg-rida">
+        <button class="nupp" data-tegevus="puhkeaeg" data-muutus="-15">−15 s</button>
+        <strong id="puhkeaeg">${aegTekstina(puhkeaeg)}</strong>
+        <button class="nupp" data-tegevus="puhkeaeg" data-muutus="15">+15 s</button>
+      </div>
+    </div>
+
     ${trenn.harjutused.map(harjutuseKaart).join('')}
 
     <div class="trenni-lopp">
@@ -503,6 +512,162 @@ function salvestaTrenn() {
   salvestaPooleli();
   location.hash = '';
 }
+
+// ---------- Puhkeaja taimer ----------
+
+const VOTI_TAIMER = 'treeningapp.taimer';     // käimasolev taimer: { lopp, labi }
+const VOTI_PUHKEAEG = 'treeningapp.puhkeaeg'; // vaikimisi puhkeaeg sekundites
+
+let puhkeaeg = loe(VOTI_PUHKEAEG, 120);
+let taimer = loe(VOTI_TAIMER, null);
+let taimeriKell = null; // setInterval, mis numbrit uuendab
+let heli = null;        // AudioContext piiksu jaoks
+let ekraaniLukk = null; // hoiab ekraani sees, kui telefon lubab
+
+// 95 -> "1:35"
+function aegTekstina(sek) {
+  return `${Math.floor(sek / 60)}:${String(sek % 60).padStart(2, '0')}`;
+}
+
+// iPhone lubab heli ainult siis, kui see on käivitatud puudutusega.
+// Seepärast valmistame heli ette juba ✓-nupu vajutamisel.
+function valmistaHeli() {
+  try {
+    heli = heli || new (window.AudioContext || window.webkitAudioContext)();
+    if (heli.state === 'suspended') heli.resume();
+  } catch {
+    heli = null;
+  }
+}
+
+// Kolm lühikest piiksu
+function piiks() {
+  if (!heli) return;
+  const t0 = heli.currentTime;
+  for (let i = 0; i < 3; i++) {
+    const algus = t0 + i * 0.4;
+    const osc = heli.createOscillator();
+    const vol = heli.createGain();
+    osc.frequency.value = 880;
+    osc.connect(vol);
+    vol.connect(heli.destination);
+    vol.gain.setValueAtTime(0.0001, algus);
+    vol.gain.exponentialRampToValueAtTime(0.6, algus + 0.02);
+    vol.gain.exponentialRampToValueAtTime(0.0001, algus + 0.3);
+    osc.start(algus);
+    osc.stop(algus + 0.32);
+  }
+}
+
+async function hoiaEkraanSees(sees) {
+  try {
+    if (sees && !ekraaniLukk && navigator.wakeLock) {
+      ekraaniLukk = await navigator.wakeLock.request('screen');
+      ekraaniLukk.addEventListener('release', () => { ekraaniLukk = null; });
+    } else if (!sees && ekraaniLukk) {
+      await ekraaniLukk.release();
+      ekraaniLukk = null;
+    }
+  } catch {
+    ekraaniLukk = null;
+  }
+}
+
+function kaivitaTaimer() {
+  taimer = { lopp: Date.now() + puhkeaeg * 1000, labi: false };
+  kirjuta(VOTI_TAIMER, taimer);
+  naitaTaimerit();
+}
+
+function sulgeTaimer() {
+  taimer = null;
+  kirjuta(VOTI_TAIMER, null);
+  naitaTaimerit();
+}
+
+// Taimeri riba ekraani allservas. Number uueneb 4 korda sekundis,
+// aga nupud joonistatakse ainult korra, et vajutused kaotsi ei läheks.
+function naitaTaimerit() {
+  const riba = document.getElementById('taimer');
+  clearInterval(taimeriKell);
+
+  if (!taimer) {
+    riba.hidden = true;
+    document.body.classList.remove('taimer-lahti');
+    hoiaEkraanSees(false);
+    return;
+  }
+
+  riba.hidden = false;
+  document.body.classList.add('taimer-lahti');
+
+  const naitaLabi = () => {
+    riba.className = 'taimer taimer-labi';
+    riba.innerHTML = `
+      <button class="taimer-labi-nupp" data-taimer="sulge">
+        Puhkus läbi!<span>Puuduta sulgemiseks</span>
+      </button>`;
+  };
+
+  if (taimer.labi) {
+    naitaLabi();
+    return;
+  }
+
+  riba.className = 'taimer';
+  riba.innerHTML = `
+    <div class="taimer-aeg-ala">
+      <span class="taimer-silt">Puhkus</span>
+      <span class="taimer-aeg" id="taimer-aeg"></span>
+    </div>
+    <div class="taimer-nupud">
+      <button class="taimer-nupp" data-taimer="miinus" aria-label="15 sekundit vähem">−15</button>
+      <button class="taimer-nupp" data-taimer="pluss" aria-label="15 sekundit juurde">+15</button>
+      <button class="taimer-nupp" data-taimer="sulge">Stopp</button>
+    </div>`;
+  hoiaEkraanSees(true);
+
+  const uuenda = () => {
+    const jaanud = Math.ceil((taimer.lopp - Date.now()) / 1000);
+    if (jaanud <= 0) {
+      clearInterval(taimeriKell);
+      taimer.labi = true;
+      kirjuta(VOTI_TAIMER, taimer);
+      piiks();
+      hoiaEkraanSees(false);
+      naitaLabi();
+      return;
+    }
+    document.getElementById('taimer-aeg').textContent = aegTekstina(jaanud);
+  };
+  uuenda();
+  taimeriKell = setInterval(uuenda, 250);
+}
+
+document.getElementById('taimer').addEventListener('click', (e) => {
+  const nupp = e.target.closest('[data-taimer]');
+  if (!nupp || !taimer) return;
+
+  switch (nupp.dataset.taimer) {
+    case 'miinus':
+      taimer.lopp -= 15000;
+      break;
+    case 'pluss':
+      valmistaHeli();
+      taimer.lopp = Math.max(taimer.lopp, Date.now()) + 15000;
+      break;
+    case 'sulge':
+      sulgeTaimer();
+      return;
+  }
+  kirjuta(VOTI_TAIMER, taimer);
+  naitaTaimerit();
+});
+
+// Kui äpp tuleb taustalt tagasi, palu uuesti ekraani sees hoida
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && taimer && !taimer.labi) hoiaEkraanSees(true);
+});
 
 // ---------- Mis vaade on lahti ----------
 
@@ -569,8 +734,17 @@ sisu.addEventListener('click', (e) => {
     case 'tehtud': {
       const seeria = pooleli.harjutused[hi].seeriad[Number(nupp.dataset.s)];
       seeria.tehtud = !seeria.tehtud;
+      if (seeria.tehtud) {
+        valmistaHeli();
+        kaivitaTaimer();
+      }
       break;
     }
+    case 'puhkeaeg':
+      puhkeaeg = Math.min(600, Math.max(30, puhkeaeg + Number(nupp.dataset.muutus)));
+      kirjuta(VOTI_PUHKEAEG, puhkeaeg);
+      document.getElementById('puhkeaeg').textContent = aegTekstina(puhkeaeg);
+      return;
     case 'variant': {
       const sisestus = pooleli.harjutused[hi];
       sisestus.variant = nupp.dataset.variant;
@@ -627,3 +801,10 @@ sisu.addEventListener('change', (e) => {
 
 window.addEventListener('hashchange', naitaVaadet);
 naitaVaadet();
+
+// Taimer, mis oli äpi sulgemise ajal käimas. Kui see lõppes rohkem kui 5 min tagasi, unusta.
+if (taimer && taimer.lopp < Date.now() - 5 * 60 * 1000) {
+  sulgeTaimer();
+} else {
+  naitaTaimerit();
+}
