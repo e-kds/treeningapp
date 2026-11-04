@@ -17,6 +17,7 @@ const LAHTRID = {
 
 const VOTI_TRENNID = 'treeningapp.trennid';
 const VOTI_POOLELI = 'treeningapp.pooleli';
+const VOTI_VARUKOOPIA = 'treeningapp.varukoopia'; // viimase varukoopia kuupäev
 
 function loe(voti, vaikimisi) {
   try {
@@ -203,7 +204,94 @@ function naitaAvalehte() {
       <p class="nadal">${nadalaVahemik(esmaspaev)}</p>
     </header>
     <p class="tehtud-kokku">Sel nädalal tehtud: ${tehtud}/${KAVA.length}</p>
-    <div class="kaardid">${kaardid}</div>`;
+    <div class="kaardid">${kaardid}</div>
+    ${varukoopiaJaotis()}`;
+}
+
+// ---------- Varukoopia ----------
+
+function varukoopiaJaotis() {
+  const viimane = loe(VOTI_VARUKOOPIA, null);
+  let info;
+  if (!viimane) {
+    info = '<p class="varukoopia-info hoiatus">Varukoopiat pole veel tehtud. Andmed on ainult selles telefonis.</p>';
+  } else {
+    const paevi = Math.round((new Date(tana()) - new Date(viimane)) / 86400000);
+    const klass = paevi > 14 ? 'hoiatus' : '';
+    info = `<p class="varukoopia-info ${klass}">Viimane varukoopia: ${lyhikeKuupaev(viimane)}</p>`;
+  }
+
+  return `
+    <section class="varukoopia">
+      <h2>Varukoopia</h2>
+      ${info}
+      <div class="nupu-rida">
+        <button class="nupp" data-tegevus="ekspordi">Salvesta varukoopia</button>
+        <button class="nupp" data-tegevus="impordi">Taasta</button>
+      </div>
+      <input type="file" id="varukoopia-fail" hidden>
+    </section>`;
+}
+
+// Kõik andmed ühte faili. iPhone'is avaneb jagamismenüü („Salvesta failidesse" jne),
+// arvutis laaditakse fail alla.
+async function ekspordi() {
+  const andmed = {
+    rakendus: 'treeningapp',
+    versioon: 1,
+    eksporditud: new Date().toISOString(),
+    trennid,
+    pooleli,
+  };
+  const nimi = `treeningpaevik-${tana()}.json`;
+  const fail = new File([JSON.stringify(andmed, null, 2)], nimi, { type: 'application/json' });
+
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [fail] })) {
+      await navigator.share({ files: [fail] });
+    } else {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(fail);
+      link.download = nimi;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') return; // jagamismenüü suleti
+    alert(`Varukoopia tegemine ebaõnnestus: ${e.message}`);
+    return;
+  }
+
+  kirjuta(VOTI_VARUKOOPIA, tana());
+  naitaAvalehte();
+}
+
+// Loeb varukoopia failist ja asendab praegused andmed
+async function impordi(fail) {
+  let andmed;
+  try {
+    andmed = JSON.parse(await fail.text());
+  } catch {
+    andmed = null;
+  }
+  if (!andmed || andmed.rakendus !== 'treeningapp' || !Array.isArray(andmed.trennid)) {
+    alert('See fail ei ole treeningpäeviku varukoopia.');
+    return;
+  }
+
+  const millal = lyhikeKuupaev(kuupaevTekstina(new Date(andmed.eksporditud)));
+  const kysimus = `Varukoopia on tehtud ${millal}.\n\n` +
+    `Trenne varukoopias: ${andmed.trennid.length}\n` +
+    `Trenne praegu telefonis: ${trennid.length}\n\n` +
+    'Taastamine asendab praegused andmed. Kas jätkad?';
+  if (!confirm(kysimus)) return;
+
+  trennid = andmed.trennid;
+  pooleli = andmed.pooleli || null;
+  kirjuta(VOTI_TRENNID, trennid);
+  salvestaPooleli();
+  alert('Andmed on taastatud.');
+  naitaAvalehte();
 }
 
 // ---------- Eelmine kord ----------
@@ -462,6 +550,12 @@ sisu.addEventListener('click', (e) => {
     case 'linnuke':
       vahetaLinnukest(nupp.dataset.trenn);
       return;
+    case 'ekspordi':
+      ekspordi();
+      return;
+    case 'impordi':
+      document.getElementById('varukoopia-fail').click();
+      return;
     case 'salvesta':
       salvestaTrenn();
       return;
@@ -522,6 +616,13 @@ sisu.addEventListener('input', (e) => {
     pooleli.harjutused[el.dataset.h].seeriad[el.dataset.s][el.dataset.lahter] = el.value;
   }
   salvestaPooleli();
+});
+
+sisu.addEventListener('change', (e) => {
+  if (e.target.id === 'varukoopia-fail' && e.target.files[0]) {
+    impordi(e.target.files[0]);
+    e.target.value = ''; // et sama faili saaks uuesti valida
+  }
 });
 
 window.addEventListener('hashchange', naitaVaadet);

@@ -153,6 +153,28 @@ main {
   font-size: 15px;
 }
 
+/* Varukoopia jaotis avalehe all */
+.varukoopia {
+  margin: 32px 0 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--aar);
+}
+
+.varukoopia h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.varukoopia-info {
+  margin: 0 0 12px;
+  color: var(--tekst-vaike);
+  font-size: 15px;
+}
+
+.varukoopia-info.hoiatus {
+  color: var(--kollane);
+}
+
 /* ---------- Trenni vaade ---------- */
 
 .trenni-paeis {
