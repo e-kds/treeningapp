@@ -389,6 +389,51 @@ textarea:focus {
   opacity: 0.4;
 }
 
+/* Harjutuse märkus */
+.markus {
+  min-height: 48px;
+  margin-top: 12px;
+  font-size: 17px;
+}
+
+.eelmine em {
+  color: var(--tekst);
+}
+
+/* Enesetunde hinnang 1–5 */
+.tunne-nupud {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.tunne-nupp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 64px;
+  padding: 6px 0;
+  border: 2px solid var(--aar);
+  border-radius: 12px;
+  background: var(--taust);
+  color: var(--tekst-vaike);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.tunne-emo {
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.tunne-nupp.valitud {
+  border-color: var(--rohe);
+  background: var(--kaart-vajutus);
+  color: var(--tekst);
+}
+
 /* Trenni lõpu nupud */
 .trenni-lopp {
   display: grid;

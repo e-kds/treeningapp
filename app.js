@@ -296,15 +296,30 @@ async function impordi(fail) {
 
 // ---------- Eelmine kord ----------
 
+// Kas kirje a on hilisem kui b? Hilisem kuupäev võidab; sama päeva puhul hiljem salvestatud.
+function onHilisem(a, b) {
+  return !b || a.kuupaev > b.kuupaev || (a.kuupaev === b.kuupaev && a.id > b.id);
+}
+
 // Viimane salvestatud kord, kus seda varianti tehti: { kuupaev, seeriad } või null
 function viimaneKord(variantId) {
   let parim = null;
   for (const t of trennid) {
-    const h = t.harjutused.find((x) => x.variant === variantId);
-    if (!h) continue;
-    // Hilisem kuupäev võidab; sama päeva puhul hiljem salvestatud
-    if (!parim || t.kuupaev > parim.kuupaev || (t.kuupaev === parim.kuupaev && t.id > parim.id)) {
+    const h = t.harjutused.find((x) => x.variant === variantId && x.seeriad.length > 0);
+    if (h && onHilisem(t, parim)) {
       parim = { id: t.id, kuupaev: t.kuupaev, seeriad: h.seeriad };
+    }
+  }
+  return parim;
+}
+
+// Viimane märkus selle variandi kohta: { kuupaev, markus } või null
+function viimaneMarkus(variantId) {
+  let parim = null;
+  for (const t of trennid) {
+    const h = t.harjutused.find((x) => x.variant === variantId && x.markus);
+    if (h && onHilisem(t, parim)) {
+      parim = { id: t.id, kuupaev: t.kuupaev, markus: h.markus };
     }
   }
   return parim;
@@ -315,8 +330,7 @@ function viimatiTehtudVariant(harjutus) {
   let parim = null;
   for (const v of harjutus.variandid) {
     const kord = viimaneKord(v.id);
-    if (kord && (!parim || kord.kuupaev > parim.kord.kuupaev ||
-        (kord.kuupaev === parim.kord.kuupaev && kord.id > parim.kord.id))) {
+    if (kord && (!parim || onHilisem(kord, parim.kord))) {
       parim = { id: v.id, kord };
     }
   }
@@ -355,17 +369,44 @@ function uusTrenn(trenn) {
     trennId: trenn.id,
     kuupaev: tana(),
     soojendus: '',
+    enesetunne: null, // 1–5
+    tunne: '',        // „Kuidas ennast tundsin"
     harjutused: trenn.harjutused.map((h) => {
       const variant = viimatiTehtudVariant(h);
-      return { variant, seeriad: seeriadEelmisest(h, variant) };
+      return { variant, seeriad: seeriadEelmisest(h, variant), markus: '' };
     }),
   };
 }
 
 // Kas pooleli trennis on midagi tehtud? (Eeltäidetud numbrid ei loe.)
 function onSisestatud(t) {
-  return t.soojendus.trim() !== '' ||
-    t.harjutused.some((h) => h.seeriad.some((s) => s.tehtud));
+  return t.soojendus.trim() !== '' || (t.tunne || '').trim() !== '' || Boolean(t.enesetunne) ||
+    t.harjutused.some((h) => (h.markus || '').trim() !== '' || h.seeriad.some((s) => s.tehtud));
+}
+
+const ENESETUNDED = [
+  { hinne: 1, emo: '😫', nimi: 'Väga halb' },
+  { hinne: 2, emo: '😕', nimi: 'Halb' },
+  { hinne: 3, emo: '😐', nimi: 'Keskmine' },
+  { hinne: 4, emo: '🙂', nimi: 'Hea' },
+  { hinne: 5, emo: '💪', nimi: 'Väga hea' },
+];
+
+function enesetundeKaart() {
+  const nupud = ENESETUNDED.map((e) => `
+    <button class="tunne-nupp ${pooleli.enesetunne === e.hinne ? 'valitud' : ''}"
+      data-tegevus="enesetunne" data-hinne="${e.hinne}"
+      aria-label="${e.nimi}" aria-pressed="${pooleli.enesetunne === e.hinne}">
+      <span class="tunne-emo">${e.emo}</span><span>${e.hinne}</span>
+    </button>`).join('');
+
+  return `
+    <section class="harjutus">
+      <h2>Kuidas ennast tundsin</h2>
+      <div class="tunne-nupud">${nupud}</div>
+      <textarea id="tunne" rows="2" aria-label="Kuidas ennast tundsin"
+        placeholder="Energia, uni, valud, meeleolu…">${puhasta(pooleli.tunne || '')}</textarea>
+    </section>`;
 }
 
 function seeriaRida(hi, si, seeria, variant) {
@@ -417,6 +458,12 @@ function harjutuseKaart(harjutus, hi) {
       </div>`
     : '';
 
+  const vanaMarkus = viimaneMarkus(variant.id);
+  const eelmineMarkus = vanaMarkus
+    ? `<p class="eelmine">Eelmine märkus (${lyhikeKuupaev(vanaMarkus.kuupaev)}):
+        <em>${puhasta(vanaMarkus.markus)}</em></p>`
+    : '';
+
   const seeriad = sisestus.seeriad
     .map((s, si) => seeriaRida(hi, si, s, variant))
     .join('');
@@ -427,12 +474,15 @@ function harjutuseKaart(harjutus, hi) {
       <p class="kava-tekst">${kavaTekst(harjutus, variant)}</p>
       ${variandid}
       ${eelmine}
+      ${eelmineMarkus}
       <div class="seeriad">${seeriaPais(variant)}${seeriad}</div>
       <div class="nupu-rida">
         <button class="nupp" data-tegevus="eemalda-seeria" data-h="${hi}"
           ${sisestus.seeriad.length <= 1 ? 'disabled' : ''}>− Seeria</button>
         <button class="nupp" data-tegevus="lisa-seeria" data-h="${hi}">+ Seeria</button>
       </div>
+      <textarea class="markus" rows="1" data-markus="${hi}" aria-label="Märkus"
+        placeholder="Märkus (nt istme kõrgus, tehnika)">${puhasta(sisestus.markus || '')}</textarea>
     </section>`;
 }
 
@@ -468,6 +518,8 @@ function naitaTrenni(trenn) {
 
     ${trenn.harjutused.map(harjutuseKaart).join('')}
 
+    ${enesetundeKaart()}
+
     <div class="trenni-lopp">
       <button class="nupp nupp-pea" data-tegevus="salvesta">Salvesta trenn</button>
       <button class="nupp nupp-ohtlik" data-tegevus="tyhista">Tühista trenn</button>
@@ -475,7 +527,8 @@ function naitaTrenni(trenn) {
 }
 
 // Teeb pooleli trennist salvestatava kirje: ainult ✓-ga seeriad, numbrid arvudeks.
-// Harjutused, kus ühtki seeriat ei tehtud (nt vahele jäetud valikulised), jäävad välja.
+// Harjutused, kus ühtki seeriat ei tehtud ega märkust kirjutatud
+// (nt vahele jäetud valikulised), jäävad välja.
 function valmisTrenn(t) {
   const harjutused = t.harjutused
     .map((h) => ({
@@ -484,14 +537,17 @@ function valmisTrenn(t) {
         .filter((s) => s.tehtud)
         .map((s) => ({ raskus: arvuks(s.raskus), kordused: arvuks(s.kordused) }))
         .filter((s) => s.raskus !== null || s.kordused !== null),
+      markus: (h.markus || '').trim(),
     }))
-    .filter((h) => h.seeriad.length > 0);
+    .filter((h) => h.seeriad.length > 0 || h.markus !== '');
 
   return {
     id: String(Date.now()),
     trennId: t.trennId,
     kuupaev: t.kuupaev || tana(),
     soojendus: t.soojendus.trim(),
+    enesetunne: t.enesetunne || null,
+    tunne: (t.tunne || '').trim(),
     harjutused,
   };
 }
@@ -502,7 +558,7 @@ function salvestaTrenn() {
     alert('Trenni kuupäev ei saa olla tulevikus.');
     return;
   }
-  if (kirje.harjutused.length === 0) {
+  if (!kirje.harjutused.some((h) => h.seeriad.length > 0)) {
     alert('Märgi enne salvestamist vähemalt üks seeria ✓-ga tehtuks.');
     return;
   }
@@ -740,6 +796,11 @@ sisu.addEventListener('click', (e) => {
       }
       break;
     }
+    case 'enesetunne': {
+      const hinne = Number(nupp.dataset.hinne);
+      pooleli.enesetunne = pooleli.enesetunne === hinne ? null : hinne;
+      break;
+    }
     case 'puhkeaeg':
       puhkeaeg = Math.min(600, Math.max(30, puhkeaeg + Number(nupp.dataset.muutus)));
       kirjuta(VOTI_PUHKEAEG, puhkeaeg);
@@ -786,6 +847,8 @@ sisu.addEventListener('input', (e) => {
     pooleli.kuupaev = el.value;
   }
   if (el.id === 'soojendus') pooleli.soojendus = el.value;
+  if (el.id === 'tunne') pooleli.tunne = el.value;
+  if (el.dataset.markus) pooleli.harjutused[el.dataset.markus].markus = el.value;
   if (el.dataset.lahter) {
     pooleli.harjutused[el.dataset.h].seeriad[el.dataset.s][el.dataset.lahter] = el.value;
   }
